@@ -331,7 +331,34 @@ def generate_substitutions(dish_name, missing_ingredient, current_ingredients):
         f"Other ingredients in the recipe: {json.dumps(clean_current)}. "
         "Keep the suggestions culinary and realistic."
     )
-    data = _generate_json(prompt, SUBSTITUTIONS_SCHEMA)
+    try:
+        data = _generate_json(prompt, SUBSTITUTIONS_SCHEMA)
+    except Exception:
+        traceback.print_exc()
+        from services.gemini_service import COMMON_STAPLE_SUBSTITUTIONS
+        key = str(missing_ingredient).strip().lower()
+        sub_info = None
+        for k, val in COMMON_STAPLE_SUBSTITUTIONS.items():
+            if k in key or key in k:
+                sub_info = val
+                break
+        if sub_info:
+            sub_name, sub_effect = sub_info
+        else:
+            sub_name = f"Use equivalent pantry vegetables or spices, or omit {missing_ingredient}"
+            sub_effect = "Maintains balanced flavor and texture in the dish"
+        return {
+            "missing_ingredient": str(missing_ingredient),
+            "substitutes": [
+                {
+                    "name": sub_name,
+                    "quantity": "as needed",
+                    "reason": "Common pantry staple substitute",
+                    "effect": sub_effect,
+                }
+            ],
+            "fallback": True,
+        }
 
     raw_subs = data.get("substitutes", [])
     if not isinstance(raw_subs, list):
@@ -385,8 +412,29 @@ def generate_recipe(dish_name, servings, final_ingredients):
             "- Resting times, and chef pro-tips for optimal flavor and texture."
         )
         return _generate_json(prompt, RECIPE_SCHEMA, system_instruction=system_instruction)
-    except Exception:
+    except Exception as exc:
         traceback.print_exc()
+        try:
+            from services.recipe_service import get_recipe_by_name
+            static_recipe = get_recipe_by_name(dish_name)
+            if static_recipe and static_recipe.get("base_instructions"):
+                ing_list = []
+                for item in (final_ingredients or []):
+                    if isinstance(item, dict):
+                        ing_list.append({"name": str(item.get("name", "")), "quantity": str(item.get("quantity", "as needed"))})
+                    elif isinstance(item, str) and item.strip():
+                        ing_list.append({"name": item.strip(), "quantity": "as needed"})
+                return {
+                    "dish_name": static_recipe.get("name", dish_name),
+                    "servings": servings,
+                    "preparation_time": f"{static_recipe.get('prep_time_minutes', 15)} mins",
+                    "cook_time": f"{static_recipe.get('cook_time_minutes', 25)} mins",
+                    "ingredients": ing_list or [{"name": dish_name, "quantity": "as needed"}],
+                    "instructions": static_recipe.get("base_instructions", []),
+                    "fallback": True,
+                }
+        except Exception:
+            pass
         raise
 
 
