@@ -198,6 +198,71 @@
           </ol>
         </div>
       </div>
+
+      <!-- Nutrition Breakdown Container -->
+      <div class="nutrition-breakdown-card" id="nutrition-breakdown-container" style="margin-top: 1.5rem; background: var(--bg-card, #ffffff); border: 1px solid var(--border-subtle, #e2e8f0); border-radius: 12px; padding: 1.25rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-primary, #E05320);">
+              <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14.93V18a1 1 0 0 1-2 0v-1.07A8 8 0 0 1 4.07 11H3a1 1 0 0 1 0-2h1.07A8 8 0 0 1 11 2.07V3a1 1 0 0 1 2 0v-.93A8 8 0 0 1 19.93 9H21a1 1 0 0 1 0 2h-1.07A8 8 0 0 1 13 16.93z"></path>
+            </svg>
+            <h4 style="margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--text-dark, #1e293b);">Nutrition Breakdown</h4>
+          </div>
+          <div style="display: flex; align-items: center;">
+            <span class="nutrition-servings-badge" id="nutrition-servings-badge" style="font-size: 0.82rem; padding: 0.3rem 0.75rem; border-radius: 20px; background: #f1f5f9; color: var(--text-muted, #64748b); font-weight: 500; border: 1px solid var(--border-subtle, #e2e8f0);">
+              Based on <span id="nutrition-servings-count">2</span> servings
+            </span>
+          </div>
+        </div>
+
+        <div class="nutrition-table-wrapper" style="overflow-x: auto;">
+          <table class="nutrition-table" id="nutrition-table" style="width: 100%; border-collapse: collapse; font-size: 0.9rem; text-align: left;">
+            <thead>
+              <tr style="border-bottom: 2px solid var(--border-subtle, #e2e8f0); color: var(--text-muted, #64748b);">
+                <th style="padding: 0.6rem 0.75rem;">Nutrient</th>
+                <th style="padding: 0.6rem 0.75rem; text-align: right;">Total Recipe</th>
+                <th style="padding: 0.6rem 0.75rem; text-align: right;" id="nutrition-serving-header">Per Serving (<span id="nutrition-col-servings">2</span> servings)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom: 1px solid var(--border-subtle, #f1f5f9);">
+                <td style="padding: 0.6rem 0.75rem; font-weight: 500;">Calories (kcal)</td>
+                <td id="nutrition-total-calories" style="padding: 0.6rem 0.75rem; text-align: right;">—</td>
+                <td id="nutrition-serving-calories" style="padding: 0.6rem 0.75rem; text-align: right; font-weight: 600;">—</td>
+              </tr>
+              <tr style="border-bottom: 1px solid var(--border-subtle, #f1f5f9);">
+                <td style="padding: 0.6rem 0.75rem; font-weight: 500;">Protein (g)</td>
+                <td id="nutrition-total-protein" style="padding: 0.6rem 0.75rem; text-align: right;">—</td>
+                <td id="nutrition-serving-protein" style="padding: 0.6rem 0.75rem; text-align: right; font-weight: 600;">—</td>
+              </tr>
+              <tr style="border-bottom: 1px solid var(--border-subtle, #f1f5f9);">
+                <td style="padding: 0.6rem 0.75rem; font-weight: 500;">Carbohydrates (g)</td>
+                <td id="nutrition-total-carbohydrates" style="padding: 0.6rem 0.75rem; text-align: right;">—</td>
+                <td id="nutrition-serving-carbohydrates" style="padding: 0.6rem 0.75rem; text-align: right; font-weight: 600;">—</td>
+              </tr>
+              <tr style="border-bottom: 1px solid var(--border-subtle, #f1f5f9);">
+                <td style="padding: 0.6rem 0.75rem; font-weight: 500;">Fat (g)</td>
+                <td id="nutrition-total-fat" style="padding: 0.6rem 0.75rem; text-align: right;">—</td>
+                <td id="nutrition-serving-fat" style="padding: 0.6rem 0.75rem; text-align: right; font-weight: 600;">—</td>
+              </tr>
+              <tr style="border-bottom: 1px solid var(--border-subtle, #f1f5f9);">
+                <td style="padding: 0.6rem 0.75rem; font-weight: 500;">Fiber (g)</td>
+                <td id="nutrition-total-fiber" style="padding: 0.6rem 0.75rem; text-align: right;">—</td>
+                <td id="nutrition-serving-fiber" style="padding: 0.6rem 0.75rem; text-align: right; font-weight: 600;">—</td>
+              </tr>
+              <tr>
+                <td style="padding: 0.6rem 0.75rem; font-weight: 500;">Sugar (g)</td>
+                <td id="nutrition-total-sugar" style="padding: 0.6rem 0.75rem; text-align: right;">—</td>
+                <td id="nutrition-serving-sugar" style="padding: 0.6rem 0.75rem; text-align: right; font-weight: 600;">—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="nutrition-loading" style="display: none; text-align: center; padding: 0.5rem; font-size: 0.85rem; color: var(--text-muted, #64748b);">
+          Calculating nutrition values...
+        </div>
+      </div>
+      </div>
     </div>
 
     <!-- SECTION 4: Recipe-Aware Interactive Chat Box -->

@@ -573,7 +573,122 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update Chef AI Chat context
     chatRecipeName.textContent = recipe.dish_name;
     chatGreetingDish.textContent = recipe.dish_name;
+
+    // Trigger nutrition analysis
+    const ings = recipe.ingredients || state.finalIngredients || [];
+    const sVal = recipe.servings || state.servings || 2;
+    if (ings.length > 0) {
+      loadNutritionData(ings, sVal);
+    }
   }
+
+  // --------------------------------------------------------------------------
+  // Nutrition Breakdown Calculation & Display
+  // --------------------------------------------------------------------------
+  function estimateNutrients(name) {
+    const lower = (name || '').toLowerCase();
+    const db = {
+      chicken: { calories: 240, protein: 31, carbohydrates: 0, fat: 3.6, fiber: 0, sugar: 0 },
+      egg: { calories: 72, protein: 6.3, carbohydrates: 0.4, fat: 4.8, fiber: 0, sugar: 0.2 },
+      rice: { calories: 206, protein: 4.3, carbohydrates: 45, fat: 0.4, fiber: 0.6, sugar: 0.1 },
+      pasta: { calories: 220, protein: 8, carbohydrates: 43, fat: 1.3, fiber: 2.5, sugar: 0.8 },
+      tomato: { calories: 22, protein: 1.1, carbohydrates: 4.8, fat: 0.2, fiber: 1.5, sugar: 3.2 },
+      potato: { calories: 161, protein: 4.3, carbohydrates: 37, fat: 0.2, fiber: 3.8, sugar: 1.7 },
+      onion: { calories: 44, protein: 1.2, carbohydrates: 10, fat: 0.1, fiber: 1.9, sugar: 4.7 },
+      garlic: { calories: 15, protein: 0.6, carbohydrates: 3.3, fat: 0.1, fiber: 0.2, sugar: 0.1 },
+      broccoli: { calories: 55, protein: 3.7, carbohydrates: 11, fat: 0.6, fiber: 5.1, sugar: 2.6 },
+      capsicum: { calories: 30, protein: 1.0, carbohydrates: 6.0, fat: 0.2, fiber: 2.1, sugar: 4.2 },
+      cheese: { calories: 113, protein: 7, carbohydrates: 0.4, fat: 9.3, fiber: 0, sugar: 0.1 },
+      milk: { calories: 122, protein: 8, carbohydrates: 12, fat: 4.8, fiber: 0, sugar: 12 },
+      spinach: { calories: 23, protein: 2.9, carbohydrates: 3.6, fat: 0.4, fiber: 2.2, sugar: 0.4 },
+      bean: { calories: 127, protein: 8.7, carbohydrates: 22.8, fat: 0.5, fiber: 7.4, sugar: 0.6 },
+      oil: { calories: 120, protein: 0, carbohydrates: 0, fat: 14, fiber: 0, sugar: 0 },
+      butter: { calories: 102, protein: 0.1, carbohydrates: 0, fat: 11.5, fiber: 0, sugar: 0 },
+    };
+
+    for (const [key, val] of Object.entries(db)) {
+      if (lower.includes(key)) {
+        return { ...val };
+      }
+    }
+    return { calories: 50, protein: 2, carbohydrates: 8, fat: 1, fiber: 1, sugar: 1 };
+  }
+
+  async function loadNutritionData(ingredients, servings) {
+    if (!ingredients || !ingredients.length) return;
+
+    const parsedServings = parseInt(servings, 10) || state.servings || 2;
+    const nutritionLoading = document.getElementById('nutrition-loading');
+
+    if (nutritionLoading) nutritionLoading.style.display = 'block';
+
+    const payloadIngredients = ingredients.map((item) => {
+      if (typeof item === 'object' && item !== null) {
+        return {
+          name: item.name || 'Ingredient',
+          nutrition: item.nutrition || estimateNutrients(item.name || ''),
+        };
+      }
+      return {
+        name: String(item),
+        nutrition: estimateNutrients(String(item)),
+      };
+    });
+
+    try {
+      const response = await fetch('/api/nutrition/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ingredients: payloadIngredients,
+          servings: parseInt(parsedServings, 10),
+        }),
+      });
+
+      const json = await response.json();
+      if (response.ok && json.success && json.data) {
+        const total = json.data.total_nutrition || {};
+        const perServing = json.data.per_serving || {};
+
+        const setCell = (id, val, unit = '') => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = val !== undefined && val !== null ? `${val}${unit ? ' ' + unit : ''}` : '—';
+        };
+
+        setCell('nutrition-total-calories', total.calories);
+        setCell('nutrition-serving-calories', perServing.calories);
+
+        setCell('nutrition-total-protein', total.protein, 'g');
+        setCell('nutrition-serving-protein', perServing.protein, 'g');
+
+        setCell('nutrition-total-carbohydrates', total.carbohydrates, 'g');
+        setCell('nutrition-serving-carbohydrates', perServing.carbohydrates, 'g');
+
+        setCell('nutrition-total-fat', total.fat, 'g');
+        setCell('nutrition-serving-fat', perServing.fat, 'g');
+
+        setCell('nutrition-total-fiber', total.fiber, 'g');
+        setCell('nutrition-serving-fiber', perServing.fiber, 'g');
+
+        setCell('nutrition-total-sugar', total.sugar, 'g');
+        setCell('nutrition-serving-sugar', perServing.sugar, 'g');
+
+        // Update static serving indicators
+        const badgeCount = document.getElementById('nutrition-servings-count');
+        if (badgeCount) badgeCount.textContent = parsedServings;
+        const colServings = document.getElementById('nutrition-col-servings');
+        if (colServings) colServings.textContent = parsedServings;
+      } else {
+        console.warn('Failed to calculate nutrition data:', json.error);
+      }
+    } catch (err) {
+      console.error('Network error during nutrition analysis:', err);
+    } finally {
+      if (nutritionLoading) nutritionLoading.style.display = 'none';
+    }
+  }
+
+  window.loadNutritionData = loadNutritionData;
 
   // Stepper within recipe view
   if (recipeServingsDec && recipeServingsInc) {
@@ -582,6 +697,12 @@ document.addEventListener('DOMContentLoaded', () => {
         state.servings--;
         recipeServingsVal.textContent = state.servings;
         showToast(`Portion adjusted to ${state.servings} servings. Scale ingredients accordingly!`, 'info');
+        if (typeof loadNutritionData === 'function') {
+          const ings = (state.currentRecipe && state.currentRecipe.ingredients) || state.finalIngredients || [];
+          if (ings.length > 0) {
+            loadNutritionData(ings, state.servings);
+          }
+        }
       }
     });
 
@@ -590,6 +711,12 @@ document.addEventListener('DOMContentLoaded', () => {
         state.servings++;
         recipeServingsVal.textContent = state.servings;
         showToast(`Portion adjusted to ${state.servings} servings. Scale ingredients accordingly!`, 'info');
+        if (typeof loadNutritionData === 'function') {
+          const ings = (state.currentRecipe && state.currentRecipe.ingredients) || state.finalIngredients || [];
+          if (ings.length > 0) {
+            loadNutritionData(ings, state.servings);
+          }
+        }
       }
     });
   }

@@ -1,21 +1,41 @@
-# Environment variables and API keys (CRITICAL)
-.env
+# Python virtual environments
 
-# Python cache & virtual environment
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.env/
 venv/
-env/
 .venv/
+env/
+
+# Python cache
+
+**pycache**/
+*.py[cod]
+.pytest_cache/
+
+# API keys and environment variables
+
+.env
+.env.*
+!.env.example
 
 # IDE files
+
 .vscode/
 .idea/
-*.swp
 
-# OS generated files
+# Operating system files
 .DS_Store
 Thumbs.db
+
+# Logs
+*.log
+
+# Build files
+
+build/
+dist/
+*.egg-info/
+
+# Node dependencies
+
+node_modules/
+# Nested duplicate project
+/smart-recipe-assistant/

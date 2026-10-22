@@ -4,3 +4,9 @@ python-dotenv
 google-genai
 Werkzeug
 gunicorn
+tensorflow
+pillow
+numpy
+requests
+pytest
+

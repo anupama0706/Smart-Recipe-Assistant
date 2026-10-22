@@ -34,6 +34,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const ingredientsInput = document.getElementById('ingredients-input');
   const suggestionChips = document.getElementById('suggestion-chips');
   const btnFindDishes = document.getElementById('btn-find-dishes');
+  const vegetableUpload = document.getElementById('vegetable-upload');
+  const btnUploadVegetable = document.getElementById('btn-upload-vegetable');
+  const vegetableUploadStatus = document.getElementById('vegetable-upload-status');
 
   // Mode 2 Elements (Dish Search)
   const dishNameInput = document.getElementById('dish-name-input');
@@ -175,6 +178,125 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
       ingredientsInput.focus();
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // Vegetable Image Upload & Identification
+  // --------------------------------------------------------------------------
+  if (btnUploadVegetable && vegetableUpload) {
+    btnUploadVegetable.addEventListener('click', () => {
+      vegetableUpload.click();
+    });
+
+    vegetableUpload.addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      const originalBtnHtml = btnUploadVegetable.innerHTML;
+      btnUploadVegetable.disabled = true;
+      btnUploadVegetable.innerHTML = `
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px; vertical-align: -2px; animation: spin 1s linear infinite;">
+          <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+          <path d="M12 2a10 10 0 0 1 10 10"></path>
+        </svg>
+        Identifying...
+      `;
+
+      if (vegetableUploadStatus) {
+        vegetableUploadStatus.style.display = 'block';
+        vegetableUploadStatus.style.backgroundColor = '#f8fafc';
+        vegetableUploadStatus.style.color = '#64748b';
+        vegetableUploadStatus.style.border = '1px solid #e2e8f0';
+        vegetableUploadStatus.textContent = 'Classifying vegetable image...';
+      }
+
+      try {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const response = await fetch('/api/identify-vegetable', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success && result.data) {
+          const vegetable = result.data.vegetable;
+
+          // Automatically append to current ingredient list
+          if (ingredientsInput) {
+            let current = ingredientsInput.value.trim();
+            if (!current) {
+              ingredientsInput.value = vegetable;
+            } else {
+              const parts = current.split(',').map(p => p.trim().toLowerCase());
+              if (!parts.includes(vegetable.toLowerCase())) {
+                ingredientsInput.value = `${current}, ${vegetable}`;
+              }
+            }
+            ingredientsInput.focus();
+          }
+
+          // Also append to suggestion chips if not already present
+          if (suggestionChips) {
+            const existingChip = Array.from(suggestionChips.querySelectorAll('.chip')).find(
+              c => (c.getAttribute('data-item') || '').toLowerCase() === vegetable.toLowerCase()
+            );
+            if (!existingChip) {
+              const newChip = document.createElement('button');
+              newChip.type = 'button';
+              newChip.className = 'pantry-chip chip';
+              newChip.setAttribute('data-item', vegetable.toLowerCase());
+              newChip.textContent = `+ ${vegetable}`;
+              suggestionChips.appendChild(newChip);
+            }
+          }
+
+          const message = `${vegetable} added to ingredients.`;
+          if (window.showToast) {
+            window.showToast(message, 'success');
+          }
+
+          if (vegetableUploadStatus) {
+            vegetableUploadStatus.style.display = 'block';
+            vegetableUploadStatus.style.backgroundColor = '#f0fdf4';
+            vegetableUploadStatus.style.color = '#166534';
+            vegetableUploadStatus.style.border = '1px solid #bbf7d0';
+            vegetableUploadStatus.innerHTML = `<strong>${escapeHtml(vegetable)}</strong> added to ingredients.`;
+          }
+        } else {
+          const errorMsg = (result && result.error) || 'Failed to identify vegetable.';
+          if (window.showToast) {
+            window.showToast(errorMsg, 'error');
+          }
+          if (vegetableUploadStatus) {
+            vegetableUploadStatus.style.display = 'block';
+            vegetableUploadStatus.style.backgroundColor = '#fef2f2';
+            vegetableUploadStatus.style.color = '#991b1b';
+            vegetableUploadStatus.style.border = '1px solid #fecaca';
+            vegetableUploadStatus.textContent = errorMsg;
+          }
+        }
+      } catch (err) {
+        console.error('Vegetable identification request failed:', err);
+        const errMsg = 'Error connecting to vegetable detection service.';
+        if (window.showToast) {
+          window.showToast(errMsg, 'error');
+        }
+        if (vegetableUploadStatus) {
+          vegetableUploadStatus.style.display = 'block';
+          vegetableUploadStatus.style.backgroundColor = '#fef2f2';
+          vegetableUploadStatus.style.color = '#991b1b';
+          vegetableUploadStatus.style.border = '1px solid #fecaca';
+          vegetableUploadStatus.textContent = errMsg;
+        }
+      } finally {
+        btnUploadVegetable.disabled = false;
+        btnUploadVegetable.innerHTML = originalBtnHtml;
+        vegetableUpload.value = '';
+      }
     });
   }
 
@@ -605,6 +727,12 @@ document.addEventListener('DOMContentLoaded', () => {
           state.missingIngredients = missData.data.missing_ingredients || [];
         }
         renderStudioChecklist();
+        if (typeof loadNutritionData === 'function') {
+          const ings = state.finalIngredients || state.requiredIngredients || [];
+          if (ings.length > 0) {
+            loadNutritionData(ings, state.servings);
+          }
+        }
       }
     } catch (e) {
       if (window.showToast) window.showToast('Could not adjust servings portions.', 'error');
@@ -717,6 +845,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       closeSubModal();
       renderStudioChecklist();
+      if (typeof loadNutritionData === 'function' && state.finalIngredients && state.finalIngredients.length) {
+        loadNutritionData(state.finalIngredients, state.servings || 2);
+      }
       if (window.showToast) window.showToast(`Substituted "${missingName}" with "${substituteName}"!`, 'success');
     } catch (err) {
       if (window.hideLoader) window.hideLoader();
@@ -865,7 +996,122 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update Chef AI Greeting context
     if (studioChatRecipeName) studioChatRecipeName.textContent = recipe.dish_name;
     if (studioChatGreetingDish) studioChatGreetingDish.textContent = recipe.dish_name;
+
+    // Trigger nutrition analysis for recipe ingredients with fixed recipe servings
+    const recipeIngredients = recipe.ingredients || state.finalIngredients || state.requiredIngredients || [];
+    const sVal = recipe.servings || state.servings || 2;
+    if (recipeIngredients.length > 0) {
+      loadNutritionData(recipeIngredients, sVal);
+    }
   }
+
+  // --------------------------------------------------------------------------
+  // Nutrition Breakdown Calculation & Display
+  // --------------------------------------------------------------------------
+  function estimateNutrients(name) {
+    const lower = (name || '').toLowerCase();
+    const db = {
+      chicken: { calories: 240, protein: 31, carbohydrates: 0, fat: 3.6, fiber: 0, sugar: 0 },
+      egg: { calories: 72, protein: 6.3, carbohydrates: 0.4, fat: 4.8, fiber: 0, sugar: 0.2 },
+      rice: { calories: 206, protein: 4.3, carbohydrates: 45, fat: 0.4, fiber: 0.6, sugar: 0.1 },
+      pasta: { calories: 220, protein: 8, carbohydrates: 43, fat: 1.3, fiber: 2.5, sugar: 0.8 },
+      tomato: { calories: 22, protein: 1.1, carbohydrates: 4.8, fat: 0.2, fiber: 1.5, sugar: 3.2 },
+      potato: { calories: 161, protein: 4.3, carbohydrates: 37, fat: 0.2, fiber: 3.8, sugar: 1.7 },
+      onion: { calories: 44, protein: 1.2, carbohydrates: 10, fat: 0.1, fiber: 1.9, sugar: 4.7 },
+      garlic: { calories: 15, protein: 0.6, carbohydrates: 3.3, fat: 0.1, fiber: 0.2, sugar: 0.1 },
+      broccoli: { calories: 55, protein: 3.7, carbohydrates: 11, fat: 0.6, fiber: 5.1, sugar: 2.6 },
+      capsicum: { calories: 30, protein: 1.0, carbohydrates: 6.0, fat: 0.2, fiber: 2.1, sugar: 4.2 },
+      cheese: { calories: 113, protein: 7, carbohydrates: 0.4, fat: 9.3, fiber: 0, sugar: 0.1 },
+      milk: { calories: 122, protein: 8, carbohydrates: 12, fat: 4.8, fiber: 0, sugar: 12 },
+      spinach: { calories: 23, protein: 2.9, carbohydrates: 3.6, fat: 0.4, fiber: 2.2, sugar: 0.4 },
+      bean: { calories: 127, protein: 8.7, carbohydrates: 22.8, fat: 0.5, fiber: 7.4, sugar: 0.6 },
+      oil: { calories: 120, protein: 0, carbohydrates: 0, fat: 14, fiber: 0, sugar: 0 },
+      butter: { calories: 102, protein: 0.1, carbohydrates: 0, fat: 11.5, fiber: 0, sugar: 0 },
+    };
+
+    for (const [key, val] of Object.entries(db)) {
+      if (lower.includes(key)) {
+        return { ...val };
+      }
+    }
+    return { calories: 50, protein: 2, carbohydrates: 8, fat: 1, fiber: 1, sugar: 1 };
+  }
+
+  async function loadNutritionData(ingredients, servings) {
+    if (!ingredients || !ingredients.length) return;
+
+    const parsedServings = parseInt(servings, 10) || state.servings || 2;
+    const nutritionLoading = document.getElementById('nutrition-loading');
+
+    if (nutritionLoading) nutritionLoading.style.display = 'block';
+
+    const payloadIngredients = ingredients.map((item) => {
+      if (typeof item === 'object' && item !== null) {
+        return {
+          name: item.name || 'Ingredient',
+          nutrition: item.nutrition || estimateNutrients(item.name || ''),
+        };
+      }
+      return {
+        name: String(item),
+        nutrition: estimateNutrients(String(item)),
+      };
+    });
+
+    try {
+      const response = await fetch('/api/nutrition/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ingredients: payloadIngredients,
+          servings: parseInt(parsedServings, 10),
+        }),
+      });
+
+      const json = await response.json();
+      if (response.ok && json.success && json.data) {
+        const total = json.data.total_nutrition || {};
+        const perServing = json.data.per_serving || {};
+
+        const setCell = (id, val, unit = '') => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = val !== undefined && val !== null ? `${val}${unit ? ' ' + unit : ''}` : '—';
+        };
+
+        setCell('nutrition-total-calories', total.calories);
+        setCell('nutrition-serving-calories', perServing.calories);
+
+        setCell('nutrition-total-protein', total.protein, 'g');
+        setCell('nutrition-serving-protein', perServing.protein, 'g');
+
+        setCell('nutrition-total-carbohydrates', total.carbohydrates, 'g');
+        setCell('nutrition-serving-carbohydrates', perServing.carbohydrates, 'g');
+
+        setCell('nutrition-total-fat', total.fat, 'g');
+        setCell('nutrition-serving-fat', perServing.fat, 'g');
+
+        setCell('nutrition-total-fiber', total.fiber, 'g');
+        setCell('nutrition-serving-fiber', perServing.fiber, 'g');
+
+        setCell('nutrition-total-sugar', total.sugar, 'g');
+        setCell('nutrition-serving-sugar', perServing.sugar, 'g');
+
+        // Update static serving indicators
+        const badgeCount = document.getElementById('nutrition-servings-count');
+        if (badgeCount) badgeCount.textContent = parsedServings;
+        const colServings = document.getElementById('nutrition-col-servings');
+        if (colServings) colServings.textContent = parsedServings;
+      } else {
+        console.warn('Failed to calculate nutrition data:', json.error);
+      }
+    } catch (err) {
+      console.error('Network error during nutrition analysis:', err);
+    } finally {
+      if (nutritionLoading) nutritionLoading.style.display = 'none';
+    }
+  }
+
+  window.loadNutritionData = loadNutritionData;
 
   // --------------------------------------------------------------------------
   // Save Recipe CTA Button (Sync with DB)

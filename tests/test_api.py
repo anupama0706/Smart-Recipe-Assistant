@@ -9,14 +9,10 @@ class ApiResponseTests(unittest.TestCase):
         app.config.update(TESTING=True, SECRET_KEY="test-secret")
         self.client = app.test_client()
 
-    def test_index_uses_the_standard_success_envelope(self):
+    def test_index_redirects_to_login(self):
         response = self.client.get("/")
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.get_json(), {
-            "success": True,
-            "data": {"message": "Smart Recipe Assistant API is running."},
-        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers.get("Location"), "/login")
 
     def test_dashboard_view_renders_unified_workspace(self):
         response = self.client.get("/dashboard")
